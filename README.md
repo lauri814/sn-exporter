@@ -8,6 +8,8 @@ Split a filtered list into chunks, run jobs concurrently, and download the resul
 
 Open a classic ServiceNow list and click the extension button. Configure the export, review the settings, and confirm to start.
 
+![ServiceNow exporter demo](demo.gif)
+
 ## Development
 
 Requires Node.js 22.12+ and npm. Node.js 24 is recommended.
