@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+function event() { const listeners=[];return {addListener:callback=>listeners.push(callback),emit:details=>listeners.forEach(callback=>callback(details))}; }
+const before=event(),completed=event(),removed=event(),messages=[];
+let context={table:'incident',filter:'priority=1',rowCount:500,frameId:7},applying=false;
+const chrome={webNavigation:{onBeforeNavigate:before,onCompleted:completed},tabs:{onRemoved:removed,get:async()=>({url:'https://example.service-now.com/nav_to.do'}),sendMessage:async(tabId,message)=>messages.push(message)}};
+const bridge={isServiceNowUrl:value=>new URL(value).hostname.endsWith('.service-now.com'),readTabContext:async()=>context};
+const scope={exports:{},chrome,URL,setTimeout,require:()=>bridge};
+vm.runInNewContext(ts.transpileModule(readFileSync('src/extension/list-sync.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,scope);
+scope.exports.registerListSync(()=>applying);
+const flush=async()=>{for(let i=0;i<50;i++)await Promise.resolve()};
+const navigation={tabId:1,frameId:7,url:'https://example.service-now.com/incident_list.do?sysparm_query=priority%3D1'};
+before.emit(navigation);await flush();assert.equal(messages[0].type,'SN_EXPORT_LIST_LOADING');
+completed.emit(navigation);await flush();assert.equal(messages[1].context.filter,'priority=1');assert.equal(messages[1].context.rowCount,500);
+assert.equal(messages[1].type,'SN_EXPORT_LIST_CONTEXT');
+applying=true;completed.emit(navigation);await flush();assert.equal(messages.length,2,'Apply owns its refresh flow');
+applying=false;completed.emit({...navigation,url:'https://other.service-now.com/incident_list.do'});await flush();assert.equal(messages.length,2,'Ignore frames from a different instance');
+completed.emit({...navigation,url:'https://example.service-now.com/incident.do'});await flush();assert.equal(messages.length,2,'Ignore non-list navigation');
+console.log('List sync checks passed: loading, refreshed query/count, Apply coordination, and origin/list guards');
