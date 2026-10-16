@@ -22,9 +22,9 @@ for (const browser of ['chrome', 'firefox']) {
     ...(browser === 'firefox' ? {
       background: { scripts: ['background.js'] },
       browser_specific_settings: { gecko: {
-        id: 'sn-bg-exporter@lauri814.github.io', strict_min_version: '128.0',
+        id: 'sn-bg-exporter@lauri814.github.io', strict_min_version: '140.0',
         data_collection_permissions: { required: ['none'] },
-      } },
+      }, gecko_android: { strict_min_version: '142.0' } },
     } : { minimum_chrome_version: '120', background: { service_worker: 'background.js' } }),
   };
   await mkdir(outDir, { recursive: true });
